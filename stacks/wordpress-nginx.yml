@@ -2,11 +2,21 @@
 
 version: '2'
 
+volumes:
+  db_data:
+  html_data:
+
 services:
   wordpress:
     image: wordpress:fpm
     links:
       - db:mysql
+    volumes:
+      - html_data:/var/www/html
+    restart: always
+    networks:
+      - internal
+      - traefik-net
   nginx:
     image: raulr/nginx-wordpress
     links:
@@ -17,7 +27,38 @@ services:
      - "8080:80"
     environment:
       POST_MAX_SIZE: 128m
+    restart: always
+    networks:
+      - internal
+      - traefik-net
   db:
     image: mariadb
     environment:
       MYSQL_ROOT_PASSWORD: example
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+    networks:
+      - internal
+  adminer:
+    image: adminer:4.7.1-standalone
+    container_name: adminer
+    restart: always
+    ports:
+      - "8085:8080"
+    labels:
+      - traefik.backend=adminer
+      - traefik.frontend.rule=Host:adminer.traefik
+      - traefik.docker.network=traefik-net
+      - traefik.port=80
+    networks:
+      - internal
+      - traefik-net
+    depends_on:
+      - db
+
+networks:
+  traefik-net: 
+   driver: bridge
+  internal:
+   driver: bridge
